@@ -1,0 +1,5 @@
+<select  v-model="objectInsert[classNameMaj].[foreignNameMin].[foreignPrimaryNameMin]" id="">
+    <option v-for="([foreignNameMin]) in all[foreignNameMaj]" :key="[foreignNameMin].[foreignPrimaryNameMin]" :value="[foreignNameMin].[foreignPrimaryNameMin]">
+        {{ [foreignNameMin].label }}
+    </option>
+</select>

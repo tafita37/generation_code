@@ -1,0 +1,51 @@
+<script setup>
+    import { onMounted, reactive, getCurrentInstance  } from 'vue';
+    import axios from 'axios';
+    import TitleListe from '../reuse/TitleListe.vue';
+    import ListeGenerale from '../reuse/ListeGenerale.vue';
+    import H5TitleListe from '../reuse/H5TitleListe.vue';
+    import SpanListe from '../reuse/SpanListe.vue';
+    import ModifSupprButton from '../reuse/ModifSupprButton.vue';
+    import router from '@/router';
+
+    const all[classNameMaj]=reactive({});
+
+    const getAll[classNameMaj] = async () => {
+        try {
+            const urlApiSpringBoot = 'http://localhost:8080/[classNameMin]/all[classNameMaj]';
+            const response = await axios.get(urlApiSpringBoot);
+            Object.assign(all[classNameMaj], response.data);
+        } catch (error) {
+            console.log(error.response);
+        }
+    };
+
+    const loadFormModif = ([primaryNameMin]) => {
+        router.push({path : "/modif[classNameMaj]", query: {[primaryNameMin] : [primaryNameMin]}});
+    }
+
+    const delete[classNameMaj]ById = ([primaryNameMin]) => {
+        try {
+            const urlApiSpringBoot = 'http://localhost:8080/[classNameMin]/delete[classNameMaj]ById?[primaryNameMin]='+[primaryNameMin];
+            const response = axios.get(urlApiSpringBoot);
+            getCurrentInstance().proxy.forceUpdate();
+        } catch (error) {
+            console.error('Erreur lors de l\'appel de l\'API', error);
+        }
+    }
+
+    onMounted(getAll[classNameMaj]);
+</script>
+<template>
+    <TitleListe title-liste="Liste des [classNameMin]"/>
+    <ListeGenerale>
+        <div class="child_computer" v-for="([classNameMin])  in all[classNameMaj]" :key="[classNameMin].[primaryNameMin]">
+            <H5TitleListe labels="" :title-h5="[classNameMin].[primaryNameMin]"/>
+            [viewTableLine]
+            <ModifSupprButton :funct-modif="() => loadFormModif([classNameMin].[primaryNameMin])" :funct-delete="() => delete[classNameMaj]ById([classNameMin].[primaryNameMin])"/>
+        </div>
+    </ListeGenerale>
+</template>
+<style scoped>
+    @import "@/assets/css/liste.css";
+</style>

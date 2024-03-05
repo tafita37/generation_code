@@ -1,0 +1,11 @@
+        const getAll[foreignNameMaj] = async () => {
+            try {
+                const urlApiSpringBoot = 'http://localhost:8080/[foreignType]/all[foreignTypeMaj]';
+                const response = await axios.get(urlApiSpringBoot);
+                Object.assign(all[foreignNameMaj], response.data);
+            } catch (error) {
+                console.log(error.response);
+            }
+        };
+        
+        getAll[foreignNameMaj]();
