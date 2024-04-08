@@ -1,0 +1,7 @@
+public String login(@RequestBody [classNameMaj] o) {
+    authenticationManager.authenticate(
+        new UsernamePasswordAuthenticationToken(o.getUsername(), o.getPassword())
+    );
+    var user = repo.findBy[fieldUserNameMaj](o.getUsername()).orElseThrow(); 
+    return jwtService.generateToken(user);
+}

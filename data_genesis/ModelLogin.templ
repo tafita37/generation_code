@@ -1,0 +1,47 @@
+[namespace] [package][namespaceStart]
+[imports]
+
+
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+
+[classAnnotations]
+public class [classNameMaj] [extends]{
+    [fields]
+    [constructors]
+
+    @Override
+    public String getPassword() {
+        return [fieldMdp];  
+    }
+
+    @Override
+    public String getUsername() {
+        return [fieldUserName];
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true;
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_[classNameMaj]"));
+    }
+}
+[namespaceEnd]

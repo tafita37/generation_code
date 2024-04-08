@@ -1,0 +1,5 @@
+public int getTotalPages() {
+    long totalElements = repo.count();
+    double div = (double) totalElements/(double) [lineNumber];
+    return (int) Math.ceil(div);
+}
