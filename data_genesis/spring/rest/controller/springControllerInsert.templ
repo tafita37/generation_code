@@ -1,3 +1,4 @@
 public [classNameMaj] insert(@RequestBody [classNameMaj] o){
+    o.set[fieldMdpMaj](passwordEncoder.encode(o.get[fieldMdpMaj]()));
     return repo.save(o);
 }

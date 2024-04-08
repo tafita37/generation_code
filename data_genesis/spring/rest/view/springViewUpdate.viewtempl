@@ -16,13 +16,20 @@
     [listeVariableForeignFetch]
 
     onMounted(() => {
+        if(!localStorage.getItem("token[classNameLoginMaj]")) {
+            router.push("/");
+        }
         [fetchApi] 
     });
 
     const handleSubmit = async () => {
         try {
             const url = 'http://localhost:8080/[classNameMin]/insert[classNameMaj]';
-            const response = await axios.post(url, objectInsert[classNameMaj]);
+            const token=localStorage.getItem("token[classNameLoginMaj]");
+            const headers = {
+                Authorization: `Bearer ${token}`,
+            };
+            const response = await axios.post(url, objectInsert[classNameMaj], { headers });
             Object.assign(responseInsert[classNameMaj], response);
             router.push("/all[classNameMaj]");
         } catch (error) {

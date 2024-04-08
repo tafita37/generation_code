@@ -12,13 +12,18 @@
     [listeVariableForeignFetch]
 
     onMounted(() => {
+        if(!localStorage.getItem("token[classNameLoginMaj]")) { router.push("/"); }
         [fetchApi] 
     });
 
     const handleSubmit = () => {
         try {
+            const token=localStorage.getItem("token[classNameLoginMaj]");
+            const headers = {
+                Authorization: `Bearer ${token}`,
+            };
             const url="http://localhost:8080/[classNameMin]/insert[classNameMaj]";
-            const response=axios.post(url, objectInsert[classNameMaj]);
+            const response=axios.post(url, objectInsert[classNameMaj], { headers });
             response.then(reponse => {
                 Object.assign(responseInsert[classNameMaj], reponse.data);
                 console.log(responseInsert[classNameMaj]);
@@ -26,7 +31,7 @@
             .catch(errors => {
                 console.log(errors);
             })
-            router.push("/all[classNameMaj]");
+            router.push("/all[classNameMaj]/1");
         } catch(error) {
             console.log(error);
         }

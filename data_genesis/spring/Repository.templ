@@ -1,8 +1,8 @@
 package com.[projectNameMin].entities;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.jpa.repository.JpaRepository;
+import java.util.Optional;
 
-public interface [classNameMaj]Repository extends CrudRepository<[classNameMaj],Integer> {
-
-    
+public interface [classNameMaj]Repository extends JpaRepository<[classNameMaj],Integer> {
+    public Optional<[classNameMaj]> findBy[fieldUserNameMaj](String userName);
 }

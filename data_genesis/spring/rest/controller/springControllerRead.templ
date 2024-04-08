@@ -1,3 +1,6 @@
-public Iterable<[classNameMaj]> getAll[classNameMaj](){
-    return repo.findAll();
+public Iterable<[classNameMaj]> getAll[classNameMaj](@PathVariable int pageNumber){
+    if(pageNumber<=0) {
+        return repo.findAll();
+    }
+    return repo.findAll(PageRequest.of(pageNumber-1, [lineNumber]));
 }

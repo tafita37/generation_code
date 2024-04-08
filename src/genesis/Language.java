@@ -15,6 +15,7 @@ public class Language {
     private Architecture[] listeArchitecture;
     private Architecture architecture;
     private Model model;
+    private Model security;
     // private Controller controller;
     // private View view;
     private CustomChanges[] customChanges;
@@ -78,25 +79,32 @@ public class Language {
     public void setModel(Model model) {
         this.model = model;
     }
-    public String generateModel(Entity entity, String projectName) throws IOException, Exception{
-        String content=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+getModel().getModelTemplate()+"."+Constantes.MODEL_TEMPLATE_EXT);
+    public String generateModel(Entity entity, String projectName, String loginTable, String userNameColumn, String passwordColumn) throws IOException, Exception{
+        String content="";
+        Model model=null;
+        if(entity.getTableName().compareTo(loginTable)!=0) {
+            model=getModel();
+        } else {
+            model=getSecurity();
+        }
+        content=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+model.getModelTemplate()+"."+Constantes.MODEL_TEMPLATE_EXT);
         content=content.replace("[namespace]", getSyntax().get("namespace"));
         content=content.replace("[namespaceStart]", getSyntax().get("namespaceStart"));
         content=content.replace("[namespaceEnd]", getSyntax().get("namespaceEnd"));
-        content=content.replace("[package]", getModel().getModelPackage());
+        content=content.replace("[package]", model.getModelPackage());
         String imports="";
-        for(String i:getModel().getModelImports()){
+        for(String i:model.getModelImports()){
             imports+=i+"\n";
         }
         content=content.replace("[imports]", imports);
         String annotes="";
-        for(String a:getModel().getModelAnnotations()){
+        for(String a:model.getModelAnnotations()){
             annotes+=a+"\n";
         }
         content=content.replace("[classAnnotations]", annotes);
-        content=content.replace("[extends]", getModel().getModelExtends());
+        content=content.replace("[extends]", model.getModelExtends());
         String constructors="";
-        for(String c:getModel().getModelConstructors()){
+        for(String c:model.getModelConstructors()){
             constructors+=c+"\n";
         }
         content=content.replace("[constructors]", constructors);
@@ -105,42 +113,50 @@ public class Language {
         for(int i=0;i<entity.getFields().length;i++){
             fieldAnnotes="";
             if(entity.getFields()[i].isPrimary()){
-                for(String primAnnote:getModel().getModelPrimaryFieldAnnotations()){
+                for(String primAnnote:model.getModelPrimaryFieldAnnotations()){
                     fieldAnnotes+=primAnnote+"\n";
                 }
             }else if(entity.getFields()[i].isForeign()){
-                for(String forAnnote:getModel().getModelForeignFieldAnnotations()){
+                for(String forAnnote:model.getModelForeignFieldAnnotations()){
                     fieldAnnotes+=forAnnote+"\n";
                     fieldAnnotes=fieldAnnotes.replace("[referencedFieldNameMin]", HandyManUtils.minStart(entity.getFields()[i].getReferencedField()));
                     fieldAnnotes=fieldAnnotes.replace("[referencedFieldNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getReferencedField()));
                 }
             }
-            for(String fa:getModel().getModelFieldAnnotations()){
+            for(String fa:model.getModelFieldAnnotations()){
                 fieldAnnotes+=fa+"\n";
             }
             fields+=fieldAnnotes;
-            fields+=getModel().getModelFieldContent()+"\n";
-            fields+=getModel().getModelGetter()+"\n";
-            fields+=getModel().getModelSetter()+"\n";
+            fields+=model.getModelFieldContent()+"\n";
+            fields+=model.getModelGetter()+"\n";
+            fields+=model.getModelSetter()+"\n";
             fields=fields.replace("[columnName]", entity.getColumns()[i].getName());
             // System.out.println(entity.getTableName());
             fields=fields.replace("[fieldType]", entity.getFields()[i].getType());
-            fields=fields.replace("[modelFieldCase]", getModel().getModelFieldCase());
+            fields=fields.replace("[modelFieldCase]", model.getModelFieldCase());
             fields=fields.replace("[fieldNameMin]", HandyManUtils.minStart(entity.getFields()[i].getName()));
             fields=fields.replace("[fieldNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
+            if(entity.getFields()[i].isUserName()) {
+                System.out.println("user");
+                content=content.replace("[fieldUserName]", entity.getColumns()[i].getName());
+            } else if(entity.getFields()[i].isPassword()) {
+                System.out.println("mdp");
+                content=content.replace("[fieldMdp]", entity.getColumns()[i].getName());
+            }
         }
         content=content.replace("[fields]", fields);
         content=content.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
         content=content.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
         content=content.replace("[classNameMaj]", HandyManUtils.majStart(entity.getClassName()));
-        content=content.replace("[modelFieldCase]", getModel().getModelFieldCase());
+        content=content.replace("[modelFieldCase]", model.getModelFieldCase());
         content=content.replace("[primaryFieldType]", entity.getPrimaryField().getType());
         content=content.replace("[primaryFieldNameMin]", HandyManUtils.minStart(entity.getPrimaryField().getName()));
         content=content.replace("[primaryFieldNameMaj]", HandyManUtils.majStart(entity.getPrimaryField().getName()));
         content=content.replace("[tableName]", entity.getTableName());
         return content;
     }
-    public String generateController(Entity entity, Database database, Credentials credentials, String projectName) throws IOException, Exception{
+
+    public String generateController(Entity entity, Database database, Credentials credentials, String projectName, int lineNumber, String securityTable) throws IOException, Exception{
         String content=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getController().getControllerTemplate()+"."+Constantes.CONTROLLER_TEMPLATE_EXT);
         content=content.replace("[namespace]", getSyntax().get("namespace"));
         content=content.replace("[namespaceStart]", getSyntax().get("namespaceStart"));
@@ -217,9 +233,13 @@ public class Language {
             }
             methods+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+m.getControllerMethodContent()+"."+Constantes.CONTROLLER_TEMPLATE_EXT);
             methods=methods.replace("[controllerMethodParameter]", methodParameters);
+            methods=methods.replace("[lineNumber]", String.valueOf(lineNumber));
             changeInstanciation="";
             foreignList="";
             foreignInclude="";
+            if(entity.getTableName().compareTo(securityTable)!=0) {
+                methods=methods.replace("o.set[fieldMdpMaj](passwordEncoder.encode(o.get[fieldMdpMaj]()));", "");
+            }
             for(int i=0;i<entity.getFields().length;i++){
                 if(entity.getFields()[i].isPrimary()){
                     continue;
@@ -239,6 +259,91 @@ public class Language {
                     foreignInclude=foreignInclude.replace("[foreignNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
                     continue;
                 }
+                if(entity.getFields()[i].isPassword()) {      
+                    methods=methods.replace("[fieldMdpMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
+                } 
+                changeInstanciation+=this.getArchitecture().getController().getControllerChangeInstanciation().get("template");
+                changeInstanciation=changeInstanciation.replace("[content]", getTypeParsers().get(entity.getFields()[i].getType()));
+                changeInstanciation=changeInstanciation.replace("[value]", this.getArchitecture().getController().getControllerChangeInstanciation().get("value"));
+                changeInstanciation=changeInstanciation.replace("[fieldNameMin]", HandyManUtils.minStart(entity.getFields()[i].getName()));
+                changeInstanciation=changeInstanciation.replace("[fieldNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
+            }
+            whereInstanciation="";
+            whereInstanciation+=this.getArchitecture().getController().getControllerWhereInstanciation().get("template");
+            whereInstanciation=whereInstanciation.replace("[content]", getTypeParsers().get(entity.getPrimaryField().getType()));
+            whereInstanciation=whereInstanciation.replace("[value]", this.getArchitecture().getController().getControllerWhereInstanciation().get("value"));
+            methods=methods.replace("[primaryParse]", getTypeParsers().get(entity.getPrimaryField().getType()).replace("[value]", "[primaryNameMin]"));
+            methods=methods.replace("[controllerChangeInstanciation]", changeInstanciation);
+            methods=methods.replace("[controllerWhereInstanciation]", whereInstanciation);
+            methods=methods.replace("[controllerForeignList]", foreignList);
+            methods=methods.replace("[controllerForeignInclude]", foreignInclude);
+            methods=methods.replace("[classNameMin]", HandyManUtils.minStart(entity.getClassName()));
+            methods=methods.replace("[classNameMaj]", HandyManUtils.majStart(entity.getClassName()));
+            methods=methods.replace("[primaryNameMaj]", HandyManUtils.majStart(entity.getPrimaryField().getName()));
+            methods=methods.replace("[primaryType]", entity.getPrimaryField().getType());
+            methods=methods.replace("[primaryNameMin]", HandyManUtils.minStart(entity.getPrimaryField().getName()));
+            methods=methods.replace("[databaseDriver]", database.getDriver());
+            methods=methods.replace("[databaseSgbd]", database.getNom());
+            methods=methods.replace("[databaseHost]", credentials.getHost());
+            methods=methods.replace("[databasePort]", database.getPort());
+            methods=methods.replace("[databaseName]", credentials.getDatabaseName());
+            methods=methods.replace("[user]", credentials.getUser());
+            methods=methods.replace("[pwd]", credentials.getPwd());
+            methods=methods.replace("[databaseUseSSL]", String.valueOf(credentials.isUseSSL()));
+            methods=methods.replace("[databaseAllowKey]", String.valueOf(credentials.isAllowPublicKeyRetrieval()));
+        }
+        if(entity.getTableName().compareTo(securityTable)==0) {
+            methodAnnotes="";
+            for(String ma:getArchitecture().getController().getControllerMethodLogin().getControllerMethodAnnotations()){
+                methodAnnotes+=ma+"\n";
+            }
+            methods+=methodAnnotes;
+            methodParameters="";
+            String userNameMaj="";
+            for(EntityField ef:entity.getFields()){
+                methodParameters+=getArchitecture().getController().getControllerMethodLogin().getControllerMethodParameter();
+                if(methodParameters.isEmpty()==false){ methodParameters+=","; }
+                methodParameters=methodParameters.replace("[fieldType]", ef.getType());
+                methodParameters=methodParameters.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                if(ef.isUserName()) {
+                    userNameMaj=ef.getName();
+                }
+            }
+            if(methodParameters.isEmpty()==false){
+                methodParameters=methodParameters.substring(0, methodParameters.length()-1);
+            }
+            methods+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+getArchitecture().getController().getControllerMethodLogin().getControllerMethodContent()+"."+Constantes.CONTROLLER_TEMPLATE_EXT);
+            methods=methods.replace("[fieldUserNameMaj]", HandyManUtils.majStart(userNameMaj));
+            methods=methods.replace("[controllerMethodParameter]", methodParameters);
+            methods=methods.replace("[lineNumber]", String.valueOf(lineNumber));
+            changeInstanciation="";
+            foreignList="";
+            foreignInclude="";
+            if(entity.getTableName().compareTo(securityTable)!=0) {
+                methods=methods.replace("o.set[fieldMdpMaj](passwordEncoder.encode(o.get[fieldMdpMaj]()));", "");
+            }
+            for(int i=0;i<entity.getFields().length;i++){
+                if(entity.getFields()[i].isPrimary()){
+                    continue;
+                }else if(entity.getFields()[i].isForeign()){
+                    changeInstanciation+=this.getArchitecture().getController().getControllerForeignInstanciation().get("template");
+                    changeInstanciation=changeInstanciation.replace("[content]", getTypeParsers().get(getTypes().get(database.getTypes().get(entity.getColumns()[i].getType()))));
+                    changeInstanciation=changeInstanciation.replace("[value]", this.getArchitecture().getController().getControllerForeignInstanciation().get("value"));
+                    changeInstanciation=changeInstanciation.replace("[fieldNameMin]", HandyManUtils.minStart(entity.getFields()[i].getName()));
+                    changeInstanciation=changeInstanciation.replace("[fieldNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
+                    changeInstanciation=changeInstanciation.replace("[foreignType]", entity.getFields()[i].getType());
+                    changeInstanciation=changeInstanciation.replace("[referencedFieldNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getReferencedField()));
+                    changeInstanciation=changeInstanciation.replace("[foreignNameMin]", HandyManUtils.minStart(entity.getFields()[i].getName()));
+                    foreignList+=this.getArchitecture().getController().getControllerForeignList();
+                    foreignList=foreignList.replace("[foreignType]", entity.getFields()[i].getType());
+                    foreignList=foreignList.replace("[foreignNameMin]", HandyManUtils.minStart(entity.getFields()[i].getName()));
+                    foreignInclude+=this.getArchitecture().getController().getControllerForeignInclude();
+                    foreignInclude=foreignInclude.replace("[foreignNameMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
+                    continue;
+                }
+                if(entity.getFields()[i].isPassword()) {      
+                    methods=methods.replace("[fieldMdpMaj]", HandyManUtils.majStart(entity.getFields()[i].getName()));
+                } 
                 changeInstanciation+=this.getArchitecture().getController().getControllerChangeInstanciation().get("template");
                 changeInstanciation=changeInstanciation.replace("[content]", getTypeParsers().get(entity.getFields()[i].getType()));
                 changeInstanciation=changeInstanciation.replace("[value]", this.getArchitecture().getController().getControllerChangeInstanciation().get("value"));
@@ -287,10 +392,24 @@ public class Language {
         content=content.replace("[databaseAllowKey]", String.valueOf(credentials.isAllowPublicKeyRetrieval()));
         return content;
     }
-    public String[] generateView(Entity entity, String projectName) throws IOException, Exception{
-        String[] content=new String[this.getArchitecture().getView().getContentViews().length];
-        for(int i=0; i<this.getArchitecture().getView().getContentViews().length; i++) {
-            content[i]=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getContentViews()[i].getViewContents()+"."+Constantes.VIEW_TEMPLATE_EXT);
+    public String[] generateView(Entity entity, String projectName, String tableLogin) throws IOException, Exception{
+        String[] content=null;
+        if(entity.getUserNameColumn()!=null) {
+            content=new String[this.getArchitecture().getView().getContentViews().length+1];
+        } else {
+            content=new String[this.getArchitecture().getView().getContentViews().length];
+        }
+        String contenu="";
+        Entity entityLogin=null;
+        if(entity.getUserNameColumn()!=null) {
+            entityLogin=entity;
+            contenu=HandyManUtils.getFileContent(
+                Constantes.DATA_PATH +
+                "/" +
+                this.getArchitecture().getView().getContentLogin().getViewContents() +
+                "." +
+                Constantes.VIEW_TEMPLATE_EXT
+            );
             String foreignList="";
             String tableHeader="";
             String tableLine="";
@@ -333,6 +452,112 @@ public class Language {
                         contentTemplateFunct= contentTemplateFunct.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
                         contentTemplateFunct= contentTemplateFunct.replace("[foreignType]", HandyManUtils.minStart(ef.getType()));
                         contentTemplateFunct= contentTemplateFunct.replace("[foreignTypeMaj]", HandyManUtils.majStart(ef.getType()));
+                        contentTemplateFunct= contentTemplateFunct.replace("[classNameLoginMaj]", HandyManUtils.majStart(entityLogin.getClassName()));
+                        varFetch+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getFetchApiStock()+"."+Constantes.VIEW_TEMPLATE_EXT);
+                        varFetch= varFetch.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
+                        varFetch= varFetch.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
+                        foreignAttrObj+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getObjectInsertForeign()+"."+Constantes.VIEW_TEMPLATE_EXT);
+                        foreignAttrObj= foreignAttrObj.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
+                        foreignAttrObj= foreignAttrObj.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
+                    }
+                    // System.out.println(HandyManUtils.majStart(ef.getName()));
+                }
+                // updateForm+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getViewUpdateFormForeignField()+"."+Constantes.VIEW_TEMPLATE_EXT);
+                // updateForm=updateForm.replace("[foreignType]", ef.getType());
+                // updateForm=updateForm.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
+                // updateForm=updateForm.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
+                // updateForm=updateForm.replace("[foreignPrimaryNameMaj]", HandyManUtils.majStart(ef.getReferencedField()));
+                // updateForm=updateForm.replace("[foreignPrimaryNameMin]", HandyManUtils.minStart(ef.getReferencedField()));
+                // updateForm=updateForm.replace("[fieldNameMaj]", HandyManUtils.majStart(ef.getName()));
+                // updateForm=updateForm.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                // updateForm=updateForm.replace("[foreignNameFormattedMaj]", HandyManUtils.formatReadable(ef.getName()));
+                insertForm+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getViewInsertFormForeignField()+"."+Constantes.VIEW_TEMPLATE_EXT);
+                insertForm=insertForm.replace("[foreignType]", ef.getType());
+                insertForm=insertForm.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
+                insertForm=insertForm.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
+                insertForm=insertForm.replace("[foreignPrimaryNameMaj]", HandyManUtils.majStart(ef.getReferencedField()));
+                insertForm=insertForm.replace("[foreignPrimaryNameMin]", HandyManUtils.minStart(ef.getReferencedField()));
+                insertForm=insertForm.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                insertForm=insertForm.replace("[fieldNameMaj]", HandyManUtils.majStart(ef.getName()));
+                insertForm=insertForm.replace("[foreignNameFormattedMaj]", HandyManUtils.formatReadable(ef.getName()));
+                foreignGet=this.getArchitecture().getView().getForeignFieldGet();
+                tableLine=tableLine.replace("[foreignFieldGet]", foreignGet);
+                foreignList+=this.getArchitecture().getView().getViewForeignList();
+                foreignList=foreignList.replace("[foreignType]", ef.getType());
+                foreignList=foreignList.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
+                foreignList=foreignList.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
+            }
+            contenu=contenu.replace("[viewForeignList]", foreignList);
+            contenu=contenu.replace("[viewTableHeader]", tableHeader);
+            contenu=contenu.replace("[viewTableLine]", tableLine);
+            // content=content.replace("[viewUpdateFormField]", updateForm);
+            contenu=contenu.replace("[viewInsertFormField]", insertForm);
+            contenu=contenu.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
+            contenu=contenu.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+            contenu=contenu.replace("[classNameMaj]", HandyManUtils.majStart(entity.getClassName()));
+            contenu=contenu.replace("[classNameMin]", HandyManUtils.minStart(entity.getClassName()));
+            contenu=contenu.replace("[fieldUserName]", entity.getUserNameColumn().getName());
+            contenu=contenu.replace("[fieldMdp]", entity.getPasswordColumn().getName());
+            contenu=contenu.replace("[primaryNameMaj]", HandyManUtils.majStart(entity.getPrimaryField().getName()));
+            contenu=contenu.replace("[primaryNameMin]", HandyManUtils.minStart(entity.getPrimaryField().getName()));
+            contenu=contenu.replace("[fetchApi]", contentTemplateFunct);
+            contenu=contenu.replace("[listeVariableForeignFetch]", varFetch);
+            contenu=contenu.replace("[objectInsertForeign]", foreignAttrObj);
+        }
+        for(int i=0; i<this.getArchitecture().getView().getContentViews().length; i++) {
+            content[i]=HandyManUtils.getFileContent(
+                Constantes.DATA_PATH +
+                "/" +
+                this.getArchitecture().getView().getContentViews()[i].getViewContents() +
+                "." +
+                Constantes.VIEW_TEMPLATE_EXT
+            );
+            if(this.getArchitecture().getView().getContentViews()[i].getViewName().startsWith("New")&&entity.getUserNameColumn()!=null) {
+                content[i]=content[i].replace("if(!localStorage.getItem(\"token[classNameLoginMaj]\")) { router.push(\"/\"); }", "");
+            }
+            String foreignList="";
+            String tableHeader="";
+            String tableLine="";
+            String foreignGet;
+            // String updateForm="", 
+            String insertForm="";
+            String contentTemplateFunct="";
+            String varFetch="";
+            String foreignAttrObj="";
+            varFetch="";
+            contentTemplateFunct="";
+            for(EntityField ef:entity.getFields()){
+                foreignGet="";
+                tableHeader+=this.getArchitecture().getView().getViewTableHeader();
+                tableHeader=tableHeader.replace("[fieldNameFormattedMaj]", HandyManUtils.formatReadable(ef.getName()));
+                tableHeader=tableHeader.replace("[fieldNameMaj]", HandyManUtils.majStart(ef.getName()));
+                tableHeader=tableHeader.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                tableLine+=this.getArchitecture().getView().getViewTableLine();
+                tableLine=tableLine.replace("[fieldNameMaj]", HandyManUtils.majStart(ef.getName()));
+                tableLine=tableLine.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                if(ef.isPrimary()){
+                    tableLine=tableLine.replace("[foreignFieldGet]", foreignGet);
+                    continue;
+                }
+                if(ef.isForeign()==false){
+                    // updateForm+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getViewUpdateFormField().get(ef.getType())+"."+Constantes.VIEW_TEMPLATE_EXT);
+                    // updateForm=updateForm.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                    // updateForm=updateForm.replace("[fieldNameFormattedMaj]", HandyManUtils.formatReadable(ef.getName()));
+                    // updateForm=updateForm.replace("[fieldNameMaj]", HandyManUtils.majStart(ef.getName()));
+                    insertForm+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getViewInsertFormField().get(ef.getType())+"."+Constantes.VIEW_TEMPLATE_EXT);
+                    insertForm=insertForm.replace("[fieldNameMin]", HandyManUtils.minStart(ef.getName()));
+                    insertForm=insertForm.replace("[fieldNameMaj]", HandyManUtils.majStart(ef.getName()));
+                    insertForm=insertForm.replace("[fieldNameFormattedMaj]", HandyManUtils.formatReadable(ef.getName()));
+                    tableLine=tableLine.replace("[foreignFieldGet]", foreignGet);
+                    continue;
+                } else {
+                    if(this.getArchitecture().getView().getFetchApiFunction()!=null) {
+                        contentTemplateFunct+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getFetchApiFunction()+"."+Constantes.VIEW_TEMPLATE_EXT);
+                        contentTemplateFunct= contentTemplateFunct.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
+                        contentTemplateFunct= contentTemplateFunct.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
+                        contentTemplateFunct= contentTemplateFunct.replace("[foreignType]", HandyManUtils.minStart(ef.getType()));
+                        contentTemplateFunct= contentTemplateFunct.replace("[foreignTypeMaj]", HandyManUtils.majStart(ef.getType()));
+                        contentTemplateFunct= contentTemplateFunct.replace("[classNameLoginMaj]", HandyManUtils.majStart(HandyManUtils.toCamelCase(tableLogin)));
                         varFetch+=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+this.getArchitecture().getView().getFetchApiStock()+"."+Constantes.VIEW_TEMPLATE_EXT);
                         varFetch= varFetch.replace("[foreignNameMaj]", HandyManUtils.majStart(ef.getName()));
                         varFetch= varFetch.replace("[foreignNameMin]", HandyManUtils.minStart(ef.getName()));
@@ -374,6 +599,7 @@ public class Language {
             content[i]=content[i].replace("[viewInsertFormField]", insertForm);
             content[i]=content[i].replace("[projectNameMin]", HandyManUtils.minStart(projectName));
             content[i]=content[i].replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+            content[i]=content[i].replace("[classNameLoginMaj]", HandyManUtils.majStart(HandyManUtils.toCamelCase(tableLogin)));
             content[i]=content[i].replace("[classNameMaj]", HandyManUtils.majStart(entity.getClassName()));
             content[i]=content[i].replace("[classNameMin]", HandyManUtils.minStart(entity.getClassName()));
             content[i]=content[i].replace("[primaryNameMaj]", HandyManUtils.majStart(entity.getPrimaryField().getName()));
@@ -381,6 +607,9 @@ public class Language {
             content[i]=content[i].replace("[fetchApi]", contentTemplateFunct);
             content[i]=content[i].replace("[listeVariableForeignFetch]", varFetch);
             content[i]=content[i].replace("[objectInsertForeign]", foreignAttrObj);
+        }
+        if(content[content.length-1]==null) {
+            content[content.length-1]=contenu;
         }
         return content;
     }
@@ -395,5 +624,11 @@ public class Language {
     }
     public void setListeArchitecture(Architecture[] listeArchitecture) {
         this.listeArchitecture = listeArchitecture;
+    }
+    public Model getSecurity() {
+        return security;
+    }
+    public void setSecurity(Model security) {
+        this.security = security;
     }
 }

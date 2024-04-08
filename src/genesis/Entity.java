@@ -14,6 +14,8 @@ public class Entity {
     private String className;
     private EntityField[] fields;
     private EntityField primaryField;
+    private EntityColumn userNameColumn;
+    private EntityColumn passwordColumn;
     public EntityField getPrimaryField() {
         return primaryField;
     }
@@ -44,7 +46,7 @@ public class Entity {
     public void setFields(EntityField[] fields) {
         this.fields = fields;
     }
-    public void initialize(Connection connex, Credentials credentials, Database database, Language language) 
+    public void initialize(Connection connex, Credentials credentials, Database database, Language language, String securityTable, String userNameColumn, String passwordColumn) 
     throws ClassNotFoundException, SQLException, Exception{
         boolean opened=false;
         Connection connect=connex;
@@ -54,7 +56,7 @@ public class Entity {
         }
         String query=database.getGetcolumnsQuery().replace("[tableName]", getTableName());
         PreparedStatement statement=connect.prepareStatement(query);
-        System.out.println(statement.toString());
+        // System.out.println(statement.toString());
         try{
             Vector<EntityColumn> listeCols=new Vector<>();
             Vector<EntityField> listeFields=new Vector<>();
@@ -73,17 +75,24 @@ public class Entity {
                     field=new EntityField();
                     if(column.isForeign()){
                         // field.setName(HandyManUtils.minStart(HandyManUtils.toCamelCase(column.getReferencedTable())));
-                        field.setName(HandyManUtils.toCamelCase(column.getName()));
+                        field.setName(HandyManUtils.minStart(column.getName()));
                         field.setType(HandyManUtils.majStart(HandyManUtils.toCamelCase(column.getReferencedTable())));
                         field.setReferencedField(HandyManUtils.toCamelCase(column.getReferencedColumn()));
                     }else{
-                        field.setName(HandyManUtils.toCamelCase(column.getName()));
+                        field.setName(HandyManUtils.minStart(column.getName()));
                         field.setType(language.getTypes().get(database.getTypes().get(column.getType())));
                     }
                     field.setPrimary(column.isPrimary());
                     field.setForeign(column.isForeign());
                     if(field.isPrimary()){
                         setPrimaryField(field);
+                    }
+                    if(securityTable.compareTo(this.getTableName())==0&&userNameColumn.compareTo(column.getName())==0) {
+                        field.setUserName(true);
+                        setUserNameColumn(column);
+                    } else if(securityTable.compareTo(this.getTableName())==0&&passwordColumn.compareTo(column.getName())==0) {
+                        field.setPassword(true);
+                        setPasswordColumn(column);
                     }
                     listeCols.add(column);
                     listeFields.add(field);
@@ -105,5 +114,17 @@ public class Entity {
                 connect.close();
             }
         }
+    }
+    public EntityColumn getUserNameColumn() {
+        return userNameColumn;
+    }
+    public void setUserNameColumn(EntityColumn userNameColumn) {
+        this.userNameColumn = userNameColumn;
+    }
+    public EntityColumn getPasswordColumn() {
+        return passwordColumn;
+    }
+    public void setPasswordColumn(EntityColumn passwordColumn) {
+        this.passwordColumn = passwordColumn;
     }
 }

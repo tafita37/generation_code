@@ -1,5 +1,11 @@
 <script setup>
   import { RouterLink, RouterView } from 'vue-router';
+  import router from './router';
+
+  const deconnexion = () => {
+    localStorage.removeItem("token[classNameLoginMaj]");
+    router.push("/");
+  };
 </script>
 
 <template>
@@ -7,6 +13,11 @@
     <ul class="header">
       [navbarLinks]
       [navbarLinksInsert]
+      <li>
+        <a @click="deconnexion">
+          Deconnexion
+        </a>
+      </li>
     </ul>
   </div>
   <RouterView />

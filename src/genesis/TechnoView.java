@@ -14,6 +14,7 @@ public class TechnoView {
     private String viewInsertFormForeignField;
     private HashMap<String, String> viewInsertFormField;
     private ContentView[] contentViews;
+    private ContentView contentLogin;
     private String fetchApiFunction;
     private String fetchApiStock;
     private String viewSavePath;
@@ -121,5 +122,11 @@ public class TechnoView {
     }
     public void setObjectInsertForeign(String objectInsertForeign) {
         this.objectInsertForeign = objectInsertForeign;
+    }
+    public ContentView getContentLogin() {
+        return contentLogin;
+    }
+    public void setContentLogin(ContentView contentLogin) {
+        this.contentLogin = contentLogin;
     }
 }

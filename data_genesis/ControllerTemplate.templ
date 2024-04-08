@@ -1,7 +1,17 @@
 [namespace] [package][namespaceStart]
 [imports]
+
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+
 [controllerAnnotations]
 public class [controllerNameMaj] [extends]{
+    @Autowired
+    PasswordEncoder passwordEncoder;
+    @Autowired
+    AuthenticationManager authenticationManager;
+    @Autowired
+    JwtService jwtService;
+
     [fields]
     [constructors]
     [methods]

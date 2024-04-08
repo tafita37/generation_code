@@ -12,6 +12,7 @@ public class View {
     private String viewInsertFormForeignField;
     private HashMap<String, String> viewInsertFormField;
     private ContentView[] contentViews;
+    private ContentView contentLogin;
     private String fetchApiFunction;
     private String fetchApiStock;
     private String viewSavePath;
@@ -21,6 +22,7 @@ public class View {
     private TechnoView technoView;
     private NavbarLink navbarLinks;
     private Router router;
+    private String[] pathSecurityConfig;
 
     public void setTechnoContent() {
         this.viewForeignList=technoView.getViewForeignList();
@@ -37,6 +39,7 @@ public class View {
         this.fetchApiFunction=technoView.getFetchApiFunction();
         this.fetchApiStock=technoView.getFetchApiStock();
         this.objectInsertForeign=technoView.getObjectInsertForeign();
+        this.contentLogin=technoView.getContentLogin();
     }
     public TechnoView[] getListeTechnoView() {
         return listeTechnoView;
@@ -146,6 +149,18 @@ public class View {
     }
     public void setObjectInsertForeign(String objectInsertForeign) {
         this.objectInsertForeign = objectInsertForeign;
+    }
+    public String[] getPathSecurityConfig() {
+        return pathSecurityConfig;
+    }
+    public void setPathSecurityConfig(String[] pathSecurityConfig) {
+        this.pathSecurityConfig = pathSecurityConfig;
+    }
+    public ContentView getContentLogin() {
+        return contentLogin;
+    }
+    public void setContentLogin(ContentView contentLogin) {
+        this.contentLogin = contentLogin;
     }
     
 }

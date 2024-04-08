@@ -1,10 +1,14 @@
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.sql.Connection;
 import java.util.Scanner;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import genesis.Constantes;
 import genesis.Credentials;
@@ -16,6 +20,38 @@ import genesis.EntityField;
 import genesis.Language;
 import handyman.HandyManUtils;
 public class App {
+
+    public static void extractZipFile(String zipFilePath, String targetDirectory) throws IOException {
+        byte[] buffer = new byte[1024];
+
+        try (ZipInputStream zipInputStream = new ZipInputStream(new FileInputStream(zipFilePath))) {
+            ZipEntry zipEntry = zipInputStream.getNextEntry();
+
+            while (zipEntry != null) {
+                String entryName = zipEntry.getName();
+                File newFile = new File(targetDirectory + File.separator + entryName);
+
+                // Create directories if the entry is a directory
+                if (zipEntry.isDirectory()) {
+                    newFile.mkdirs();
+                } else {
+                    // Create parent directories if not exist
+                    newFile.getParentFile().mkdirs();
+
+                    // Extract file content
+                    try (FileOutputStream outputStream = new FileOutputStream(newFile)) {
+                        int length;
+                        while ((length = zipInputStream.read(buffer)) > 0) {
+                            outputStream.write(buffer, 0, length);
+                        }
+                    }
+                }
+
+                // Move to next entry
+                zipEntry = zipInputStream.getNextEntry();
+            }
+        }
+    }
 
     private static void copyDirectory(Path source, Path target) throws IOException {
         Files.walk(source)
@@ -32,6 +68,7 @@ public class App {
              });
     }
     public static void main(String[] args) throws Exception {
+        System.out.println(HandyManUtils.majStart("user_name"));
         Database[] databases=HandyManUtils.fromJson(Database[].class, HandyManUtils.getFileContent(Constantes.DATABASE_JSON));
         Language[] languages=HandyManUtils.fromJson(Language[].class, HandyManUtils.getFileContent(Constantes.LANGUAGE_JSON));
         Database database;
@@ -51,7 +88,10 @@ public class App {
         String foreignContext;
         String customChanges, changesFile;
         String navLink, navLinkPath, navLinkInsert;
-        String routerPath, routerLinkList, routerLinkInsert, routerLinkUpdate, routerImportComponentList, routerImportComponentInsert, routerImportComponentUpdate;
+        String routerPath, routerLinkList, routerLinkInsert, routerLinkUpdate, 
+        routerImportComponentList, routerImportComponentInsert, routerImportComponentUpdate, routerLinkLogin, 
+        routerImportComponentLogin;
+        int nbLignePage;
         try(Scanner scanner=new Scanner(System.in)){
             System.out.println("Choose a database engine:");
             for(int i=0;i<databases.length;i++){
@@ -102,6 +142,8 @@ public class App {
             projectName=scanner.next();
             System.out.print("Which entities to import ?(* to select all): ");
             entityName=scanner.next();
+            System.out.print("Nombre de ligne d'une page : ");
+            nbLignePage=scanner.nextInt();
             credentials=new Credentials(databaseName, user, pwd, host, useSSL, allowPublicKeyRetrieval);
             project=new File(projectName);
             project.mkdir();
@@ -112,7 +154,8 @@ public class App {
                 customFileContentOuter=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+c.getContent()).replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                 HandyManUtils.overwriteFileContent(customFilePath, customFileContentOuter);
             }
-            HandyManUtils.extractDir(Constantes.DATA_PATH+"/"+language.getSkeleton()+"."+Constantes.SKELETON_EXTENSION, project.getPath());
+            extractZipFile(Constantes.DATA_PATH+"\\"+language.getSkeleton()+"."+Constantes.SKELETON_EXTENSION, project.getPath());
+            // System.out.println(Constantes.DATA_PATH+"\\"+language.getSkeleton()+"."+Constantes.SKELETON_EXTENSION);
             credentialFile=new File(project.getPath(), Constantes.CREDENTIAL_FILE);
             credentialFile.createNewFile();
             HandyManUtils.overwriteFileContent(credentialFile.getPath(), HandyManUtils.toJson(credentials));
@@ -129,8 +172,14 @@ public class App {
             }
             try(Connection connect=database.getConnexion(credentials)){
                 entities=database.getEntities(connect, credentials, entityName);
+                System.out.print("Table de securite : ");
+                String tableLogin=scanner.next();
+                System.out.print("User name column : ");
+                String userNameColumn=scanner.next();
+                System.out.print("Password column : ");
+                String paswordColumn=scanner.next();
                 for(int i=0;i<entities.length;i++){
-                    entities[i].initialize(connect, credentials, database, language);
+                    entities[i].initialize(connect, credentials, database, language, tableLogin, userNameColumn, paswordColumn);
                 }
                 models=new String[entities.length];
                 controllers=new String[entities.length];
@@ -138,15 +187,19 @@ public class App {
                 navLink="";
                 navLinkInsert="";
                 routerLinkList="";
+                routerLinkLogin="";
                 routerLinkInsert=""; 
                 routerLinkUpdate="";
                 routerImportComponentList="";
+                routerImportComponentLogin="";
                 routerImportComponentInsert="";
                 routerImportComponentUpdate="";
+                Entity loginEntity=null;
+                EntityField userNameField=null;
                 for(int i=0;i<models.length;i++){
-                    models[i]=language.generateModel(entities[i], projectName);
-                    controllers[i]=language.generateController(entities[i], database, credentials, projectName);
-                    views[i]=language.generateView(entities[i], projectName);
+                    models[i]=language.generateModel(entities[i], projectName, tableLogin, userNameColumn, paswordColumn);
+                    controllers[i]=language.generateController(entities[i], database, credentials, projectName, nbLignePage, tableLogin);
+                    views[i]=language.generateView(entities[i], projectName, tableLogin);
                     modelFile=language.getModel().getModelSavePath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                     controllerFile=language.getArchitecture().getController().getControllerSavepath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                     
@@ -154,7 +207,7 @@ public class App {
                     controllerFile=controllerFile.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
                     modelFile+="/"+HandyManUtils.majStart(entities[i].getClassName())+"."+language.getModel().getModelExtension();
                     controllerFile+="/"+HandyManUtils.majStart(entities[i].getClassName())+language.getArchitecture().getController().getControllerNameSuffix()+"."+language.getArchitecture().getController().getControllerExtension();
-                    for(int j=0; j<views[i].length; j++) {
+                    for(int j=0; j<language.getArchitecture().getView().getContentViews().length; j++) {
                         viewFile=language.getArchitecture().getView().getViewSavePath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                         viewFile=viewFile.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
                         if(frontProject!=null) {
@@ -164,11 +217,27 @@ public class App {
                         // System.out.println(viewFile);
                         viewFile=viewFile.replace("[classNameMin]", HandyManUtils.minStart(entities[i].getClassName()));
                         viewFile+="/"+language.getArchitecture().getView().getContentViews()[j].getViewName()+"."+language.getArchitecture().getView().getViewExtension();
-                        System.out.println(viewFile);
+                        // System.out.println(viewFile);
                         HandyManUtils.createFile(viewFile);
                         viewFile=viewFile.replace("[classNameMin]", HandyManUtils.minStart(entities[i].getClassName()));
                         viewFile=viewFile.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
                         HandyManUtils.overwriteFileContent(viewFile, views[i][j]);
+                    }
+                    if(views[i].length!=language.getArchitecture().getView().getContentViews().length) {
+                        viewFile=language.getArchitecture().getView().getViewSavePath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+                        viewFile=viewFile.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
+                        if(frontProject!=null) {
+                            viewFile=viewFile.replace("[projectFront]", frontProject);
+                        }
+                        viewFile=viewFile.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
+                        // System.out.println(viewFile);
+                        viewFile=viewFile.replace("[classNameMin]", HandyManUtils.minStart(entities[i].getClassName()));
+                        viewFile+="/"+language.getArchitecture().getView().getContentLogin().getViewName()+"."+language.getArchitecture().getView().getViewExtension();
+                        // System.out.println(viewFile);
+                        HandyManUtils.createFile(viewFile);
+                        viewFile=viewFile.replace("[classNameMin]", HandyManUtils.minStart(entities[i].getClassName()));
+                        viewFile=viewFile.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
+                        HandyManUtils.overwriteFileContent(viewFile, views[i][views[i].length-1]);
                     }
                     HandyManUtils.createFile(modelFile);
                     for(CustomFile f:language.getModel().getModelAdditionnalFiles()){
@@ -182,7 +251,7 @@ public class App {
                         customFile=f.getName().replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
                         customFile=language.getModel().getModelSavePath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName))+"/"+customFile;
                         customFile=customFile.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
-                        customFileContent=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+f.getContent()).replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
+                        customFileContent=HandyManUtils.getFileContent(Constantes.DATA_PATH+"/"+f.getContent());
                         customFileContent=customFileContent.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
                         customFileContent=customFileContent.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                         customFileContent=customFileContent.replace("[databaseHost]", credentials.getHost());
@@ -190,6 +259,18 @@ public class App {
                         customFileContent=customFileContent.replace("[user]", credentials.getUser());
                         customFileContent=customFileContent.replace("[pwd]", credentials.getPwd());
                         customFileContent=customFileContent.replace("[modelForeignContextAttr]", foreignContext);
+                        if(entities[i].getTableName().compareTo(tableLogin)!=0) {
+                            customFileContent=customFileContent.replace("public Optional<[classNameMaj]> findBy[fieldUserNameMaj](String userName);", "");
+                        } else {
+                            loginEntity=entities[i];
+                            for(EntityField ef:entities[i].getFields()){
+                                if(ef.isUserName()) {
+                                    customFileContent=customFileContent.replace("[fieldUserNameMaj]", HandyManUtils.majStart(ef.getName()));
+                                    userNameField=ef;
+                                }
+                            }
+                        } 
+                        customFileContent=customFileContent.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
                         HandyManUtils.createFile(customFile);
                         HandyManUtils.overwriteFileContent(customFile, customFileContent);
                     }
@@ -210,7 +291,8 @@ public class App {
                     navLinkInsert=navLinkInsert.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
                     navLinkInsert=navLinkInsert.replace("[classNameformattedMin]", HandyManUtils.minStart(HandyManUtils.formatReadable(entities[i].getClassName())));
                     navLinkInsert=navLinkInsert.replace("[classNameformattedMaj]", HandyManUtils.majStart(HandyManUtils.formatReadable(entities[i].getClassName())));
-                    if(language.getArchitecture().getView().getRouter()!=null) {routerLinkList+=language.getArchitecture().getView().getRouter().getLinkList();
+                    if(language.getArchitecture().getView().getRouter()!=null) {
+                        routerLinkList+=language.getArchitecture().getView().getRouter().getLinkList();
                         routerLinkList=routerLinkList.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                         routerLinkList=routerLinkList.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
                         routerLinkList=routerLinkList.replace("[classNameMin]", HandyManUtils.minStart(entities[i].getClassName()));
@@ -231,6 +313,15 @@ public class App {
                         routerLinkUpdate=routerLinkUpdate.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
                         routerLinkUpdate=routerLinkUpdate.replace("[classNameformattedMin]", HandyManUtils.minStart(HandyManUtils.formatReadable(entities[i].getClassName())));
                         routerLinkUpdate=routerLinkUpdate.replace("[classNameformattedMaj]", HandyManUtils.majStart(HandyManUtils.formatReadable(entities[i].getClassName())));
+                        if(entities[i].getUserNameColumn()!=null) {
+                            routerLinkLogin+=language.getArchitecture().getView().getRouter().getLinkLogin();
+                            routerLinkLogin=routerLinkLogin.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+                            routerLinkLogin=routerLinkLogin.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
+                            routerLinkLogin=routerLinkLogin.replace("[classNameMin]", HandyManUtils.minStart(loginEntity.getClassName()));
+                            routerLinkLogin=routerLinkLogin.replace("[classNameMaj]", HandyManUtils.majStart(loginEntity.getClassName()));
+                        }
+                        routerLinkLogin=routerLinkLogin.replace("[classNameformattedMin]", HandyManUtils.minStart(HandyManUtils.formatReadable(entities[i].getClassName())));
+                        routerLinkLogin=routerLinkLogin.replace("[classNameformattedMaj]", HandyManUtils.majStart(HandyManUtils.formatReadable(entities[i].getClassName())));
                         routerImportComponentList+=language.getArchitecture().getView().getRouter().getComponentImportList();
                         routerImportComponentList=routerImportComponentList.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                         routerImportComponentList=routerImportComponentList.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
@@ -238,6 +329,15 @@ public class App {
                         routerImportComponentList=routerImportComponentList.replace("[classNameMaj]", HandyManUtils.majStart(entities[i].getClassName()));
                         routerImportComponentList=routerImportComponentList.replace("[classNameformattedMin]", HandyManUtils.minStart(HandyManUtils.formatReadable(entities[i].getClassName())));
                         routerImportComponentList=routerImportComponentList.replace("[classNameformattedMaj]", HandyManUtils.majStart(HandyManUtils.formatReadable(entities[i].getClassName())));
+                        if(entities[i].getUserNameColumn()!=null) {
+                            routerImportComponentLogin+=language.getArchitecture().getView().getRouter().getComponentImportLogin();
+                            routerImportComponentLogin=routerImportComponentLogin.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+                            routerImportComponentLogin=routerImportComponentLogin.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
+                            routerImportComponentLogin=routerImportComponentLogin.replace("[classNameMin]", HandyManUtils.minStart(loginEntity.getClassName()));
+                            routerImportComponentLogin=routerImportComponentLogin.replace("[classNameMaj]", HandyManUtils.majStart(loginEntity.getClassName()));
+                        }
+                        routerImportComponentLogin=routerImportComponentLogin.replace("[classNameformattedMin]", HandyManUtils.minStart(HandyManUtils.formatReadable(entities[i].getClassName())));
+                        routerImportComponentLogin=routerImportComponentLogin.replace("[classNameformattedMaj]", HandyManUtils.majStart(HandyManUtils.formatReadable(entities[i].getClassName())));
                         routerImportComponentInsert+=language.getArchitecture().getView().getRouter().getComponentImportInsert();
                         routerImportComponentInsert=routerImportComponentInsert.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                         routerImportComponentInsert=routerImportComponentInsert.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
@@ -257,20 +357,34 @@ public class App {
                 navLinkPath=language.getArchitecture().getView().getNavbarLinks().getPath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                 navLinkPath=navLinkPath.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
                 navLinkPath=navLinkPath.replace("[projectFront]", frontProject);
-                System.out.println(navLinkPath);
+                // System.out.println(navLinkPath);
+                for(int i=0; i<language.getArchitecture().getView().getPathSecurityConfig().length; i++) {
+                    String securityPath=language.getArchitecture().getView().getPathSecurityConfig()[i].replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+                    String securityContent = HandyManUtils.getFileContent(securityPath);
+                    securityContent=securityContent.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
+                    securityContent=securityContent.replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
+                    securityContent=securityContent.replace("[classNameMaj]", HandyManUtils.majStart(loginEntity.getClassName()));
+                    securityContent=securityContent.replace("[fieldUserNameMaj]", HandyManUtils.majStart(userNameField.getName()));
+                    securityContent=securityContent.replace("[classLoginMin]", HandyManUtils.minStart(loginEntity.getClassName()));
+                    securityContent=securityContent.replace("[classLoginMaj]", HandyManUtils.majStart(loginEntity.getClassName()));
+                    HandyManUtils.overwriteFileContent(securityPath, securityContent);
+                }
                 HandyManUtils.overwriteFileContent(navLinkPath, HandyManUtils.getFileContent(navLinkPath).replace("[navbarLinks]", navLink));
                 HandyManUtils.overwriteFileContent(navLinkPath, HandyManUtils.getFileContent(navLinkPath).replace("[navbarLinksInsert]", navLinkInsert));
+                HandyManUtils.overwriteFileContent(navLinkPath, HandyManUtils.getFileContent(navLinkPath).replace("[classNameLoginMaj]", HandyManUtils.majStart(loginEntity.getClassName())));
                 if(language.getArchitecture().getView().getRouter()!=null) {
                     routerPath=language.getArchitecture().getView().getRouter().getPath().replace("[projectNameMaj]", HandyManUtils.majStart(projectName));
                     routerPath=routerPath.replace("[projectNameMin]", HandyManUtils.minStart(projectName));
                     routerPath=routerPath.replace("[projectFront]", frontProject);
-                    System.out.println(routerPath);
+                    // System.out.println(routerPath);
+                    HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[routerLinkLogin]", routerLinkLogin));
                     HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[routerLinkList]", routerLinkList));
                     HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[routerLinkInsert]", routerLinkInsert));
                     HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[routerLinkUpdate]", routerLinkUpdate));
                     HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[routerComponentImportList]", routerImportComponentList));
                     HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[componentImportInsert]", routerImportComponentInsert));
                     HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[componentImportUpdate]", routerImportComponentUpdate));
+                    HandyManUtils.overwriteFileContent(routerPath, HandyManUtils.getFileContent(routerPath).replace("[componentImportLogin]", routerImportComponentLogin));
                 }
                 for(CustomChanges c:language.getCustomChanges()){
                     customChanges="";

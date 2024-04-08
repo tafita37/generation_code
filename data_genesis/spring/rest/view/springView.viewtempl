@@ -1,5 +1,5 @@
 <script setup>
-    import { onMounted, reactive, getCurrentInstance  } from 'vue';
+    import { onMounted, reactive, getCurrentInstance, ref, watch  } from 'vue';
     import axios from 'axios';
     import TitleListe from '../reuse/TitleListe.vue';
     import ListeGenerale from '../reuse/ListeGenerale.vue';
@@ -7,14 +7,42 @@
     import SpanListe from '../reuse/SpanListe.vue';
     import ModifSupprButton from '../reuse/ModifSupprButton.vue';
     import router from '@/router';
+    import { useRoute } from 'vue-router';
+    import Pagination from '../reuse/Pagination.vue';
 
     const all[classNameMaj]=reactive({});
+    const nb[classNameMaj]OnePage=ref(0);
+    const listeNumPages=reactive([]);
+    const route=useRoute();
 
     const getAll[classNameMaj] = async () => {
         try {
-            const urlApiSpringBoot = 'http://localhost:8080/[classNameMin]/all[classNameMaj]';
-            const response = await axios.get(urlApiSpringBoot);
+            const numPage=route.params.numPage;
+            const token=localStorage.getItem("token[classNameLoginMaj]");
+            const headers = {
+                Authorization: `Bearer ${token}`,
+            };
+            const urlApiSpringBoot = 'http://localhost:8080/[classNameMin]/all[classNameMaj]/'+numPage;
+            const response = await axios.get(urlApiSpringBoot, { headers });
             Object.assign(all[classNameMaj], response.data);
+        } catch (error) {
+            console.log(error.response);
+        }
+    };
+
+    const count[classNameMaj]OnePage = async () => {
+        try {
+            const numPage=route.params.numPage;
+            const token=localStorage.getItem("token[classNameLoginMaj]");
+            const headers = {
+                Authorization: `Bearer ${token}`,
+            };
+            const urlApiSpringBoot = 'http://localhost:8080/[classNameMin]/count[classNameMaj]OnePage';
+            const response = await axios.get(urlApiSpringBoot, { headers });
+            nb[classNameMaj]OnePage.value=response.data;
+            for(var i=1; i<=nb[classNameMaj]OnePage.value; i++) {
+                listeNumPages.push(i);
+            }
         } catch (error) {
             console.log(error.response);
         }
@@ -26,25 +54,40 @@
 
     const delete[classNameMaj]ById = ([primaryNameMin]) => {
         try {
+            const token=localStorage.getItem("token[classNameLoginMaj]");
+            const headers = {
+                Authorization: `Bearer ${token}`,
+            };
             const urlApiSpringBoot = 'http://localhost:8080/[classNameMin]/delete[classNameMaj]ById?[primaryNameMin]='+[primaryNameMin];
-            const response = axios.get(urlApiSpringBoot);
-            getCurrentInstance().proxy.forceUpdate();
+            const response = axios.get(urlApiSpringBoot, { headers });
+            getAll[classNameMaj]();   
         } catch (error) {
             console.error('Erreur lors de l\'appel de l\'API', error);
         }
     }
 
-    onMounted(getAll[classNameMaj]);
+    onMounted(() =>  {
+        if(!localStorage.getItem("token[classNameLoginMaj]")) {
+            router.push("/");
+        }
+        getAll[classNameMaj]();
+        count[classNameMaj]OnePage();
+    });
+
+    watch(() => route.params.numPage, () => {
+        getAll[classNameMaj]();
+    });
 </script>
 <template>
     <TitleListe title-liste="Liste des [classNameMin]"/>
     <ListeGenerale>
-        <div class="child_computer" v-for="([classNameMin])  in all[classNameMaj]" :key="[classNameMin].[primaryNameMin]">
+        <div class="child_computer" v-for="([classNameMin])  in all[classNameMaj].content" :key="[classNameMin].[primaryNameMin]">
             <H5TitleListe labels="" :title-h5="[classNameMin].[primaryNameMin]"/>
             [viewTableLine]
             <ModifSupprButton :funct-modif="() => loadFormModif([classNameMin].[primaryNameMin])" :funct-delete="() => delete[classNameMaj]ById([classNameMin].[primaryNameMin])"/>
         </div>
     </ListeGenerale>
+    <Pagination :actual-num-page="route.params.numPage" :liste-num-pages="listeNumPages" url="all[classNameMaj]"/>
 </template>
 <style scoped>
     @import "@/assets/css/liste.css";

@@ -5,9 +5,11 @@ public class Router {
     String componentImportList;
     String componentImportInsert;
     String componentImportUpdate;
+    String componentImportLogin;
     String linkList;
     String linkInsert;
     String linkUpdate;
+    String linkLogin;
     public String getPath() {
         return path;
     }
@@ -49,5 +51,17 @@ public class Router {
     }
     public void setComponentImportUpdate(String componentImportUpdate) {
         this.componentImportUpdate = componentImportUpdate;
+    }
+    public String getLinkLogin() {
+        return linkLogin;
+    }
+    public void setLinkLogin(String linkLogin) {
+        this.linkLogin = linkLogin;
+    }
+    public String getComponentImportLogin() {
+        return componentImportLogin;
+    }
+    public void setComponentImportLogin(String componentImportLogin) {
+        this.componentImportLogin = componentImportLogin;
     }
 }

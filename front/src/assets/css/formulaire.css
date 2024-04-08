@@ -5,3 +5,7 @@ input, select {
     padding: 5px;
     border: solid 1px;
 }
+
+a {
+    color: black;
+}

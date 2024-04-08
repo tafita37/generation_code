@@ -1,7 +1,11 @@
         const getAll[foreignNameMaj] = async () => {
             try {
-                const urlApiSpringBoot = 'http://localhost:8080/[foreignType]/all[foreignTypeMaj]';
-                const response = await axios.get(urlApiSpringBoot);
+                const urlApiSpringBoot = 'http://localhost:8080/[foreignType]/all[foreignTypeMaj]/0';
+                const token=localStorage.getItem("token[classNameLoginMaj]");
+                const headers = {
+                    Authorization: `Bearer ${token}`,
+                };
+                const response = await axios.get(urlApiSpringBoot, { headers });
                 Object.assign(all[foreignNameMaj], response.data);
             } catch (error) {
                 console.log(error.response);

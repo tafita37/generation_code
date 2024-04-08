@@ -15,6 +15,7 @@ public class Controller {
     private String[] controllerConstructors;
     private String controllerForeignInclude;
     private ControllerMethod[] controllerMethods;
+    private ControllerMethod controllerMethodLogin;
     private String controllerSavepath;
     private String controllerExtension;
     private String controllerPackage, controllerTemplate, controllerNameSuffix;
@@ -137,6 +138,12 @@ public class Controller {
     }
     public void setControllerPackage(String controllerPackage) {
         this.controllerPackage = controllerPackage;
+    }
+    public ControllerMethod getControllerMethodLogin() {
+        return controllerMethodLogin;
+    }
+    public void setControllerMethodLogin(ControllerMethod controllerMethodLogin) {
+        this.controllerMethodLogin = controllerMethodLogin;
     }
     
 }

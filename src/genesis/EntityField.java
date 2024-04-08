@@ -6,6 +6,8 @@ public class EntityField {
     private boolean primary;
     private boolean foreign;
     private String referencedField;
+    private boolean isUserName;
+    private boolean isPassword;
     public String getName() {
         return name;
     }
@@ -35,6 +37,18 @@ public class EntityField {
     }
     public void setReferencedField(String referencedField) {
         this.referencedField = referencedField;
+    }
+    public boolean isUserName() {
+        return isUserName;
+    }
+    public void setUserName(boolean isUserName) {
+        this.isUserName = isUserName;
+    }
+    public boolean isPassword() {
+        return isPassword;
+    }
+    public void setPassword(boolean isPassword) {
+        this.isPassword = isPassword;
     }
     
 }
